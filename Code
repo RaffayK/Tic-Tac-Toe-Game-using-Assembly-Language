@@ -1,0 +1,335 @@
+data segment
+ new_line db 13, 10, "$"
+
+ game_draw db "_|_|_", 13, 10
+ db "_|_|_", 13, 10
+ db "_|_|_", 13, 10, "$"
+
+ game_pointer db 9 DUP(?)
+
+ win_flag db 0
+ player db "0$"
+
+ game_start_message db "--Game Start--", 13, 10, "$"
+ game_end_message db "--Game Over--", 13, 10, "$"
+ player_message db "Player $"
+ win_message db " won!$"
+ type_message db "Type your position (from 1-9): $"
+ends
+stack segment
+ dw 128 dup(?)
+ends
+extra segment
+
+ends
+code segment
+start:
+
+ mov bx, data
+ mov ds, bx
+ mov bx, extra
+ mov es, bx
+
+ call select_game_pointer
+
+main_loop:
+ call clr_screen
+
+ lea dx, game_start_message
+ call print
+
+ lea dx, new_line
+ call print
+
+ lea dx, player_message
+ call print
+ lea dx, player
+ call print
+
+ lea dx, new_line
+ call print
+
+ lea dx, game_draw
+ call print
+
+ lea dx, new_line
+ call print
+
+ lea dx, type_message
+ call print
+
+
+ call read_keybrd
+
+
+ sub al, 49
+ mov bh, 0
+ mov bl, al 
+ call new_draw
+
+ call check
+
+
+ cmp win_flag, 1
+ je game_end
+
+ call change_char
+
+ jmp main_loop
+change_char:
+
+ lea si, player
+ xor ds:[si], 1
+
+ ret
+
+
+new_draw:
+ mov bl, game_pointer[bx]
+ mov bh, 0
+
+ lea si, player
+
+ cmp ds:[si], "0"
+ je draw_x
+
+ cmp ds:[si], "1"
+ je draw_o
+
+ draw_x:
+ mov cl, "x"
+ jmp update
+ draw_o:
+ mov cl, "o"
+ jmp update
+
+ update:
+ mov ds:[bx], cl
+
+ ret
+
+
+check:
+ call pick_line
+ ret 
+ 
+pick_line:
+ mov cx, 0
+
+ pick_line_loop:
+ cmp cx, 0
+ je first_line
+
+ cmp cx, 1
+ je second_line
+
+ cmp cx, 2
+ je third_line
+
+ call pick_column
+ ret
+
+ first_line:
+ mov si, 0
+ jmp do_pick_line
+ second_line:
+ mov si, 3
+ jmp do_pick_line
+
+ third_line:
+ mov si, 6
+ jmp do_pick_line
+ do_pick_line:
+ inc cx
+
+ mov bh, 0
+ mov bl, game_pointer[si]
+ mov al, ds:[bx]
+ cmp al, "_"
+ je pick_line_loop
+
+ inc si
+ mov bl, game_pointer[si]
+ cmp al, ds:[bx]
+ jne pick_line_loop
+
+ inc si
+ mov bl, game_pointer[si]
+ cmp al, ds:[bx]
+ jne pick_line_loop
+
+
+ mov win_flag, 1
+ ret 
+ pick_column:
+ mov cx, 0
+
+ pick_column_loop:
+ cmp cx, 0
+ je first_column
+
+ cmp cx, 1
+ je second_column
+
+ cmp cx, 2
+ je third_column
+
+ call pick_diagonal
+ ret
+
+ first_column:
+ mov si, 0
+ jmp do_pick_column
+ second_column:
+ mov si, 1
+ jmp do_pick_column
+
+ third_column:
+ mov si, 2
+ jmp do_pick_column
+ do_pick_column:
+ inc cx
+
+ mov bh, 0
+ mov bl, game_pointer[si]
+ mov al, ds:[bx]
+ cmp al, "_"
+ je pick_column_loop
+
+ add si, 3
+ mov bl, game_pointer[si]
+ cmp al, ds:[bx]
+ jne pick_column_loop
+
+ add si, 3
+ mov bl, game_pointer[si]
+ cmp al, ds:[bx]
+ jne pick_column_loop
+
+
+ mov win_flag, 1
+ ret 
+ pick_diagonal:
+ mov cx, 0
+
+ pick_diagonal_loop:
+ cmp cx, 0
+ je first_diagonal
+
+ cmp cx, 1
+ je second_diagonal
+
+ ret
+
+ first_diagonal:
+ mov si, 0
+ mov dx, 4 
+ jmp do_pick_diagonal
+ second_diagonal:
+ mov si, 2
+ mov dx, 2
+ jmp do_pick_diagonal
+ do_pick_diagonal:
+ inc cx
+
+ mov bh, 0
+ mov bl, game_pointer[si]
+ mov al, ds:[bx]
+ cmp al, "_"
+ je pick_diagonal_loop
+
+ add si, dx
+ mov bl, game_pointer[si]
+ cmp al, ds:[bx]
+ jne pick_diagonal_loop
+
+ add si, dx
+ mov bl, game_pointer[si]
+ cmp al, ds:[bx]
+ jne pick_diagonal_loop
+
+
+ mov win_flag, 1
+ ret
+
+game_end:
+ call clr_screen
+
+ lea dx, game_start_message
+ call print
+ lea dx, new_line
+ call print
+
+ lea dx, game_draw
+ call print
+
+ lea dx, new_line
+ call print
+ lea dx, game_end_message
+ call print
+
+ lea dx, player_message
+ call print
+
+ lea dx, player
+ call print
+
+ lea dx, win_message
+ call print
+ jmp fim
+
+
+select_game_pointer:
+ lea si, game_draw
+ lea bx, game_pointer
+
+ mov cx, 9
+
+ loop_1:
+ cmp cx, 6
+ je add_1
+
+ cmp cx, 3
+ je add_1
+
+ jmp add_2
+
+ add_1:
+ add si, 1
+ jmp add_2
+
+ add_2:
+ mov ds:[bx], si
+ add si, 2
+
+ inc bx
+ loop loop_1
+ ret 
+ print:
+ mov ah, 9
+ int 21h
+
+ ret
+
+clr_screen:
+ mov ah, 0fh
+ int 10h
+
+ mov ah, 0
+ int 10h
+
+ ret
+
+
+read_keybrd:
+ mov ah, 1
+ int 21h
+
+ ret
+
+
+fim:
+ jmp fim
+
+code ends
+end start
